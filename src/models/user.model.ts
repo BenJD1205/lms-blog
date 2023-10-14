@@ -71,12 +71,12 @@ userSchema.pre<IUser>('save',async function(next){
 
 //access token
 userSchema.methods.accessToken = function (){
-    return jwt.sign({id:this._id}, process.env.ACCESS_TOKEN || '')
+    return jwt.sign({id:this._id}, process.env.ACCESS_TOKEN || '', {expiresIn: '5m'})
 }
 
 //refresh token
 userSchema.methods.refreshToken = function (){
-    return jwt.sign({id:this._id}, process.env.REFRESH_TOKEN || '')
+    return jwt.sign({id:this._id}, process.env.REFRESH_TOKEN || '', {expiresIn:'3d'})
 }
 
 //compare password
