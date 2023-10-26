@@ -8,7 +8,9 @@ import {
     updateAccessToken,
     getUserProfile,
     socialAuth,
-    updateUserInfo
+    updateUserInfo,
+    updatePassword,
+    updateProfilePicture,
 } from '../api/controllers/user.controller'
 import { asyncHandler } from '../helper/asyncHandler'
 import { isAuthenticated } from '../api/middleware/auth'
@@ -27,7 +29,13 @@ router.post('/active-user', asyncHandler(activeUser))
 router.post("/social-auth", asyncHandler(socialAuth))
 
 //update user info
-router.put("/self", asyncHandler(updateUserInfo))
+router.put("/update-profile", isAuthenticated ,asyncHandler(updateUserInfo))
+
+//update user password
+router.put("/update-password", isAuthenticated ,asyncHandler(updatePassword))
+
+//update user avatar 
+router.put("/update-avatar", isAuthenticated ,asyncHandler(updateProfilePicture))
 
 //update token
 router.get('/refresh-token', asyncHandler(updateAccessToken))
