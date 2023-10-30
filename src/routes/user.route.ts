@@ -11,13 +11,35 @@ import {
     updateUserInfo,
     updatePassword,
     updateProfilePicture,
+    updateUserRole,
+    deleteUser,
 } from '../api/controllers/user.controller'
 import { asyncHandler } from '../helper/asyncHandler'
-import { isAuthenticated } from '../api/middleware/auth'
+import { authorizeRoles, isAuthenticated } from '../api/middleware/auth'
+import validationMiddleware from '../api/middleware/validation'
+import userSchema from '../api/validation/user-schema'
 const router = express.Router()
 
+//update token
+router.get('/refresh-token', asyncHandler(updateAccessToken))
+
+//get user profile
+router.get('/profile', isAuthenticated, asyncHandler(getUserProfile))
+
+//logout
+router.get('/logout', isAuthenticated, asyncHandler(logout))
+
+//get all users
+router.get('/get-users', isAuthenticated, asyncHandler(getUsers))
+
 //register
-router.post('/register', asyncHandler(register))
+router.post(
+    '/register',
+    validationMiddleware({
+        bodySchema: userSchema.registerBody,
+    }),
+    asyncHandler(register)
+)
 
 //login
 router.post('/login', asyncHandler(login))
@@ -26,27 +48,38 @@ router.post('/login', asyncHandler(login))
 router.post('/active-user', asyncHandler(activeUser))
 
 //social auth
-router.post("/social-auth", asyncHandler(socialAuth))
+router.post('/social-auth', asyncHandler(socialAuth))
 
 //update user info
-router.put("/update-profile", isAuthenticated ,asyncHandler(updateUserInfo))
+router.put(
+    '/update-profile',
+    isAuthenticated,
+    validationMiddleware({
+        bodySchema: userSchema.updateProfile,
+    }),
+    asyncHandler(updateUserInfo)
+)
 
 //update user password
-router.put("/update-password", isAuthenticated ,asyncHandler(updatePassword))
+router.put('/update-password', isAuthenticated, asyncHandler(updatePassword))
 
-//update user avatar 
-router.put("/update-avatar", isAuthenticated ,asyncHandler(updateProfilePicture))
+//update user avatar
+router.put(
+    '/update-avatar',
+    isAuthenticated,
+    asyncHandler(updateProfilePicture)
+)
 
-//update token
-router.get('/refresh-token', asyncHandler(updateAccessToken))
+router.put(
+    '/update-role',
+    isAuthenticated,
+    authorizeRoles('admin'),
+    validationMiddleware({
+        bodySchema: userSchema.updateUserRole
+    }),
+    asyncHandler(updateUserRole)
+)
 
-//get user profile 
-router.get('/profile', isAuthenticated ,asyncHandler(getUserProfile))
-
-//logout
-router.get('/logout', isAuthenticated, asyncHandler(logout))
-
-//get all users
-router.get('/', isAuthenticated, asyncHandler(getUsers))
+router.delete("/delete-user/:id", isAuthenticated, authorizeRoles('admin'), asyncHandler(deleteUser))
 
 export default router

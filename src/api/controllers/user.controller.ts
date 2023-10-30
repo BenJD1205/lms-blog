@@ -8,7 +8,7 @@ import ErrorHandler from '../errors/errorHandler'
 import { sendToken } from '../../helper/jwt'
 import { redis } from '../../db/redis'
 import { accessTokenOptions, refreshTokenOptions } from '../../helper/jwt'
-import { getUserById } from '../../services/user.service'
+import { getUserById, findAllUser, updateRole, findUser } from '../../services/user.service'
 import cloudinary from 'cloudinary'
 
 //register interface
@@ -98,7 +98,7 @@ const activeUser = async (req: Request, res: Response, next: NextFunction) => {
         const { name, email, password } = newUser.user
         const existUser = await userModel.findOne({ email })
         if (existUser) return next(new ErrorHandler('User already exists', 400))
-        const user = await userModel.create({
+        await userModel.create({
             name,
             email,
             password,
@@ -165,12 +165,12 @@ export const updateAccessToken = async (
         const refresh_token = req.cookies.refresh_token as string
         const decoded = jwt.verify(
             refresh_token,
-            process.env.REFRESH_TOKEN_SECRET as string
+            process.env.REFRESH_TOKEN as string
         ) as JwtPayload
         const message = 'Could not refresh token'
         if (!decoded) return next(new ErrorHandler(message, 400))
         const session = await redis.get(decoded.id as string)
-        if (!session) return next(new ErrorHandler(message, 400))
+        if (!session) return next(new ErrorHandler('Please login for access this resources', 400)) //7days
 
         const user = JSON.parse(session)
         const accessToken = jwt.sign(
@@ -190,6 +190,7 @@ export const updateAccessToken = async (
         req.user = user
         res.cookie('access_token', accessToken, accessTokenOptions)
         res.cookie('refresh_token', refreshToken, refreshTokenOptions)
+        await redis.set(user._id, JSON.stringify(user), "EX", 604800)
 
         res.status(200).json({
             status: 'success',
@@ -242,7 +243,7 @@ const updateProfilePicture = async (
     next: NextFunction
 ) => {
     try {
-        const { avatar } = req.body
+        const { avatar } = req.body as IUpdateProfilePicture;
         const userId = req.user?._id
         const user = await userModel.findById(userId)
         if (avatar && user) {
@@ -302,7 +303,7 @@ const getUserProfile = async (
  */
 const getUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const users = await userModel.find()
+        const users = await findAllUser();
         res.json({
             success: true,
             data: users,
@@ -375,6 +376,34 @@ const updateUserInfo = async (
     }
 }
 
+const updateUserRole = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id, role } = req.body;
+        const user = await updateRole({ id, role })
+        res.status(201).json({
+            success: true,
+            data: user,
+        })
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
+const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { id } = req.params;
+        const user = await findUser(id);
+        if (!user) return next(new ErrorHandler("user not found", 400))
+        await user.deleteOne({ id });
+
+        await redis.del(id);
+    }
+    catch (err) {
+        next(err);
+    }
+}
+
 export {
     register,
     login,
@@ -386,4 +415,6 @@ export {
     updateUserInfo,
     updatePassword,
     updateProfilePicture,
+    updateUserRole,
+    deleteUser,
 }
